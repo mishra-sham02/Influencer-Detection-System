@@ -1,0 +1,143 @@
+'''
+The script performs the following steps:
+1. Imports necessary libraries for data processing, modeling, and visualization.
+2. Loads the dataset using pandas for further analysis.
+3. Preprocesses the data (e.g., handling missing values, scaling numerical features, encoding categorical features) to prepare it for modeling.
+4. Splits the preprocessed data into training and testing sets for model training and evaluation.
+5. Trains a linear regression model on the training data to predict a target variable.
+6. Evaluates the trained model on the testing data using mean squared error to assess its performance.
+7. Performs clustering using KMeans to identify patterns or clusters in the data.
+8. Visualizes the data and model results using matplotlib, seaborn, and plotly for better understanding and insights.
+'''
+
+# Import the pandas library and alias it as pd for data manipulation and analysis
+import pandas as pd
+ # Import the numpy library and alias it as np for numerical operations
+import numpy as np
+ # Import the train_test_split function from sklearn.model_selection module for splitting the dataset
+from sklearn.model_selection import train_test_split
+ # Import the LinearRegression class from sklearn.linear_model module for linear regression modeling
+from sklearn.linear_model import LinearRegression
+ # Import the mean_squared_error function from sklearn.metrics module for evaluating the model
+from sklearn.metrics import mean_squared_error
+ # Import the KMeans class from sklearn.cluster module for clustering
+from sklearn.cluster import KMeans
+ # Import the StandardScaler class from sklearn.preprocessing module for standardizing features
+from sklearn.preprocessing import StandardScaler
+# Import the OneHotEncoder class from sklearn.preprocessing module for encoding categorical features
+from sklearn.preprocessing import OneHotEncoder
+ # Import the re module for working with regular expressions
+import re
+# Import the pyplot module from matplotlib library and alias it as plt for plotting
+import matplotlib.pyplot as plt
+ # Import the seaborn library and alias it as sns for data visualization
+import seaborn as sns
+# Import the express module from plotly library and alias it as px for interactive plotting
+import plotly.express as px
+
+'''
+This line reads a CSV file containing data about social media influencers on YouTube and stores it in a pandas DataFrame called data_youtube.
+
+pd.read_csv: This function is used to read a CSV file into a pandas DataFrame. "/content/sample_data/social media influencers - youtube (1).csv": This is the file path of the CSV file to be read. Replace this with the actual file path if it's different. data_youtube: This is the variable name used to store the DataFrame containing the data from the CSV file. You can use a different variable name if you prefer.
+
+'''
+
+data_youtube = pd.read_csv("/content/sample_data/social media influencers - youtube (1).csv")
+data_youtube = pd.DataFrame(data_youtube)
+data_youtube.head()
+
+'''
+The following function will rename the column 'channel name' in the data_youtube DataFrame to 'Creator Name'. The rename() method is used to change the name of a column in a pandas DataFrame. The inplace=True parameter is used to modify the DataFrame in place, meaning the original DataFrame is updated with the new column name.
+'''
+
+data_youtube.rename(columns={'channel name': 'Creator Name'}, inplace=True)
+
+'''
+
+The following line will provide us with the number of rows and columns in the DataFrame.
+'''
+
+data_youtube.shape
+data_youtube.info()
+
+data_youtube.isnull().sum()
+data_youtube.dropna(subset={'Audience Country', 'Category'}, inplace=True)
+
+
+data_youtube.fillna(value={'avg likes': 0, 'avg comments': 0}, inplace=True)
+data_youtube.isnull().sum()
+
+data_youtube['Subscribers'].str[-1].value_counts()
+
+'''
+The following function data_to_numeric takes a DataFrame df and a list of column names column_list, and converts the specified columns in the DataFrame to numeric values. It handles values with 'M' (million) and 'K' (thousand) suffixes, converting them appropriately. The function returns the DataFrame with the specified columns converted to numeric values.
+'''
+def data_to_numeric(df, column_list):
+    """
+    Converts specified columns in a DataFrame to numeric values, handling 'M' (million) and 'K' (thousand) suffixes.
+
+    Args:
+        df (DataFrame): The DataFrame containing the columns to be converted.
+        column_list (list): A list of column names to be converted.
+
+    Returns:
+        DataFrame: The DataFrame with specified columns converted to numeric values.
+    """
+    for column_name in column_list:
+        new_column_name = 'new_' + column_name
+        if new_column_name not in df.columns:
+
+            if df[column_name].dtype == 'object':
+                # Convert the column to string
+                df[new_column_name] = df[column_name].apply(str)
+                # Remove 'M' and 'K' suffixes from values
+                df[new_column_name] = df[new_column_name].apply(lambda x: x.replace('M', '') if 'M' in x else x)
+                df[new_column_name] = df[new_column_name].apply(lambda x: x.replace('K', '') if 'K' in x else x)
+                # Convert the column to numeric
+                df[new_column_name] = pd.to_numeric(df[new_column_name], downcast='integer')
+                # Multiply values by 1,000,000 for 'M' and by 1,000 for 'K'
+                df[new_column_name] = np.where(df[column_name].str.contains('M'), df[new_column_name] * 1000000,
+                                                 np.where(df[column_name].str.contains('K'), df[new_column_name] * 1000, df[new_column_name]))
+                # Convert the column to integer
+                df[new_column_name] = df[new_column_name].astype(int)
+    return df
+
+# Apply the function to convert columns to numeric
+data_youtube = data_to_numeric(data_youtube, ['Subscribers', 'avg views', 'avg likes', 'avg comments'])
+
+# Display the first few rows of the DataFrame
+data_youtube.head()
+
+mean_likes= data_youtube['new_avg likes'].mean()
+mean_likes
+
+
+'''
+
+LINEAR REGRESSION
+'''
+# Select features and target variable
+X = data_youtube[['new_Subscribers', 'new_avg likes', 'new_avg views']]
+y = data_youtube['Engagement rate']
+
+# Split the data into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Train the linear regression model
+model = LinearRegression()
+model.fit(X_train, y_train)
+
+# Make predictions on the testing set
+y_pred = model.predict(X_test)
+
+# Evaluate the model
+mse = mean_squared_error(y_test, y_pred)
+print('Mean Squared Error:', mse)
+
+# Plot predicted vs. actual values
+plt.scatter(y_test, y_pred)
+plt.xlabel('Actual Engagement Rate (%)')
+plt.ylabel('Predicted Engagement Rate (%)')
+plt.title('Predicted vs. Actual Engagement Rate')
+plt.show()
+     
